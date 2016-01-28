@@ -49,23 +49,20 @@ int main (int argc, char *argv[]){
                 exit(EXIT_FAILURE);
         }
 
-        read_into_memory(argv[1]);
+        read_into_memory(argv[1]); //fill global pointer (array) p
 
+        uint8_t key = 0, best_key, dec;
+        int score, best_score = 0;
 
-        uint8_t key, best_key, dec;
-        int i, score, best_score = 0;
-
-        for (key = 0, i = 0; i < 256; key++, i++){
-                score = 0;
+        for (int i = 0; i < 256; i++){
+                score = 0, key++;
                 for (off_t len = 0; len < sb.st_size; len++) {
                         dec = p[len] ^ key;
                         if (dec == ' ') score += 5;
                         else if (isalnum(dec)) score += 1;
                 }
-                if (score > best_score) {
-                        best_score = score;
-                        best_key = key;
-                }
+                if (score > best_score)
+                        best_score = score, best_key = key;
         }
         printf("%i;%c;", best_score, best_key);
         for (off_t len = 0; len < sb.st_size; len++) putchar(p[len]^best_key);
