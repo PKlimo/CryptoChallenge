@@ -90,6 +90,12 @@ int find_key_len(int max_key_len) {
         return best_key_len;
 }
 
+void print_xored_data(uint8_t *keys, int key_len){
+        for (off_t len = 0; len < sb.st_size; len++)
+                putchar(p[len] ^ keys[len%key_len]);
+        putchar('\n');
+}
+
 int main (int argc, char *argv[]){
         if (argc < 2) {
                 fprintf (stderr, "usage: %s <file>\n", argv[0]);
@@ -102,8 +108,7 @@ int main (int argc, char *argv[]){
 
         uint8_t key = 0, best_key;
         int score, best_score;
-
-        printf("Key: ");
+        uint8_t keys[key_len];
 
         for (int offset = 0; offset < key_len; offset++){
                 best_score = 0;
@@ -114,10 +119,11 @@ int main (int argc, char *argv[]){
                                 best_key = key;
                         }
                 }
-                putchar(best_key);
+                keys[offset] = best_key;
         }
 
-        putchar('\n');
+        printf("Decoding file with key: %*.*s\n", key_len, key_len, keys);
+        print_xored_data(keys, key_len);
 
         free_memory();
         exit(EXIT_SUCCESS);
