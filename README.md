@@ -8,3 +8,4 @@ important files:
 * set1/ch6/conv.sh - basic usage of xxd
 * set1/ch7/python.py - using AES-128 in ECB mode in python
 * set1/ch7/bash.sh - using utility openssh for decrypting AES-128 in ECB mode
+* set2/ch10/python.py - xoring list of bytes
