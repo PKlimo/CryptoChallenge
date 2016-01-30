@@ -1,4 +1,4 @@
-# CryptoChallenge
+# the matasano crypto challenges
 
 Crypto Challenge from http://cryptopals.com
 
