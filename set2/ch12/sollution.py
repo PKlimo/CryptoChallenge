@@ -1,30 +1,57 @@
 #!/usr/bin/env python3
 from __future__ import print_function
+import sys  # argv, stderr
 
 
 class PlayGround:
     def __init__(self, fn):
         import base64
         from Crypto import Random
-        self.passwd = Random.new().read(16)
-        self.fn = fn
+        self.__passwd = Random.new().read(16)
         with open(fn, "rb") as f:
             lines = f.read()
-        self.secret = base64.decodebytes(lines)
+        self.__secret = base64.decodebytes(lines)
+        # self.__secret = b"yellow submarine secret text"
 
     def append(self, input):
-        # secret = b"yellow submarine secret text"
-        msg = input + self.secret
+        msg = input + self.__secret
         length = 16 - (len(msg) % 16)
         msg += bytes([length])*length
         return msg
 
     def encryption_oracle(self, input):
         from Crypto.Cipher import AES
-        obj = AES.new(self.passwd, AES.MODE_ECB)
+        obj = AES.new(self.__passwd, AES.MODE_ECB)
         msg = self.append(input)
         cip = obj.encrypt(msg)
         return cip
+
+
+class EncData:
+    def __init__(self, pg):
+        self.__pg = pg  # instance of PlayGround
+        self.__bs = self.__give_enc_block_size()  # Size of block - for AES 128 is 16 (128/8)
+        self.bs = self.__bs  # temporary - delete later
+        self.__num_block = len(self.__pg.encryption_oracle(b"")) // self.__bs
+
+    def __give_enc_block_size(self):
+        i = 0
+        while True:
+            diff = len(self.__pg.encryption_oracle(b"a"*(i+1))) - len(self.__pg.encryption_oracle(b"a"*i))
+            if diff == 0:
+                i += 1
+            else:
+                return diff
+
+    def __check_ecb_mode(self):
+        bs = self.__bs  # block size
+        enc = self.__pg.encryption_oracle(b"a"*2*bs)
+        return enc[0:bs] == enc[bs:bs*2]
+
+    def print_info(self):
+        print("Length of encrypted block: "+str(self.__bs), file=sys.stderr)
+        print("Number of encrypted blocks: "+str(self.__num_block), file=sys.stderr)
+        print("Checking ECB mode: "+str(self.__check_ecb_mode()), file=sys.stderr)
 
 
 def print_debug(msg, data):
@@ -32,21 +59,6 @@ def print_debug(msg, data):
     for i in range(len(data) // 16):
         print(data[i*16:(i+1)*16])
     print()
-
-
-def give_enc_block_size(pg):
-    i = 0
-    while True:
-        diff = len(pg.encryption_oracle(b"a"*(i+1))) - len(pg.encryption_oracle(b"a"*i))
-        if diff == 0:
-            i += 1
-        else:
-            return diff
-
-
-def check_ecb_mode(pg, block_size):
-        enc = pg.encryption_oracle(b"a"*2*block_size)
-        return enc[0:block_size] == enc[block_size:block_size*2]
 
 
 def get_guess_block(block_size, k, known, j):
@@ -95,15 +107,19 @@ def find_bytes(pg, k, known):
 
 
 if __name__ == "__main__":
-    pg = PlayGround("input.b64")
-    block_size = give_enc_block_size(pg)
-    num_block = len(pg.encryption_oracle(b"")) // block_size
-    print("Length of encrypted block: "+str(block_size))
-    print("Number of encrypted blocks: "+str(num_block))
-    print("Checking ECB mode: "+str(check_ecb_mode(pg, block_size)))
+    debug = False
+    fn = sys.argv[1] if len(sys.argv) > 1 else "input.b64"
+    if debug:
+        print("File name: ", fn, file=sys.stderr)
+    pg = PlayGround(fn)
+    enc_data = EncData(pg)
+    block_size = enc_data.bs
+    if debug:
+        enc_data.print_info()
 
     known = []
     for b in range(1, 140):
         known += [find_bytes(pg, b, known)]
-    print(known)
+    if debug:
+        print(known, file=sys.stderr)
     print("".join([chr(k) for k in known]))
