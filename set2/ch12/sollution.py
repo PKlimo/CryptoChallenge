@@ -3,6 +3,12 @@ from __future__ import print_function
 import sys  # argv, stderr
 
 
+def print_debug_block(msg, data):
+    print(msg)
+    for i in range(len(data) // 16):
+        print(data[i*16:(i+1)*16])
+
+
 class PlayGround:
     def __init__(self, fn):
         import base64
@@ -30,9 +36,8 @@ class PlayGround:
 class EncData:
     def __init__(self, pg):
         self.__pg = pg  # instance of PlayGround
-        self.__bs = self.__give_enc_block_size()  # Size of block - for AES 128 is 16 (128/8)
-        self.bs = self.__bs  # temporary - delete later
-        self.__num_block = len(self.__pg.encryption_oracle(b"")) // self.__bs
+        self.bs = self.__give_enc_block_size()  # Size of block - for AES 128 is 16 (128/8)
+        self.num_block = len(self.__pg.encryption_oracle(b"")) // self.bs
 
     def __give_enc_block_size(self):
         i = 0
@@ -44,66 +49,61 @@ class EncData:
                 return diff
 
     def __check_ecb_mode(self):
-        bs = self.__bs  # block size
+        bs = self.bs  # block size
         enc = self.__pg.encryption_oracle(b"a"*2*bs)
         return enc[0:bs] == enc[bs:bs*2]
 
     def print_info(self):
-        print("Length of encrypted block: "+str(self.__bs), file=sys.stderr)
-        print("Number of encrypted blocks: "+str(self.__num_block), file=sys.stderr)
+        print("Length of encrypted block: "+str(self.bs), file=sys.stderr)
+        print("Number of encrypted blocks: "+str(self.num_block), file=sys.stderr)
         print("Checking ECB mode: "+str(self.__check_ecb_mode()), file=sys.stderr)
 
 
-def print_debug(msg, data):
-    print(msg)
-    for i in range(len(data) // 16):
-        print(data[i*16:(i+1)*16])
-    print()
+class Message:
+    def __init__(self, pg, enc_data):
+        self.pg = pg
+        self.bs = enc_data.bs
+
+    def __iblock(self):  # return important block from varialbe self.enc
+        return self.enc[(self.iblok-1)*self.bs:self.iblok*self.bs]
+
+    def encode(self):  # encode message and return important block
+        return self.__iblock()
+
+    def print_debug(self):
+        print(self)
+        print("padding: ", str(self.padding))
+        print("msg:     ", str(self.msg))
+        print_debug_block("enc: ", self.enc)
+        print("iblock: ", str(self.iblok))
+        print_debug_block("important block: ", self.__iblock())
 
 
-def get_guess_block(block_size, k, known, j):
-    padding = bytes(b"a"*(block_size-k))  # block_size-k paddin of a (aa...aa)
-    # work only for first block
-    # guess = padding+bytes(known)+bytes([j])  # padding + k-1 known bytes + 1 byte guess
-    guess = padding+bytes(known[max([k-16, 0]):])+bytes([j])  # padding + k-1 known bytes + 1 byte guess
-    return guess
+class CompareMessage(Message):
+    def __init__(self, pg, enc_data):
+        super(). __init__(pg, enc_data)
+
+    def create(self, k):
+        # input: k - last byte of encoded message is k-th byte of secret
+        # return: set the variable self.enc
+        self.iblok = ((k-1) // 16)+1  # important block that will contain k-th byte of secreet (on last possition)
+        self.padding = bytes(b"a"*((self.bs-1)-((k-1) % 16)))
+        self.msg = self.padding
+        self.enc = self.pg.encryption_oracle(self.msg)
 
 
-def enc_guess_block(pg, block_size, k, known, j):
-    guess = get_guess_block(block_size, k, known, j)
-    enc_g = pg.encryption_oracle(guess)
-    return enc_g[0:block_size]
+class GuessMessage(Message):
+    def __init__(self, pg, enc_data):
+        super(). __init__(pg, enc_data)
 
-
-def get_oracle_block(block_size, k):
-    vzor_blok = ((k-1) // 16)+1  # in which block in encryption_oracle I am comparing
-    vzor_msg = bytes(b"a"*((block_size-1)-((k-1) % 16)))
-    return (vzor_blok, vzor_msg)
-
-
-def enc_oracle_block(pg, block_size, k):
-    (vzor_blok, vzor_msg) = get_oracle_block(block_size, k)
-    # work only for first block
-    # vzor_enc = encryption_oracle(padding)[0:block_size]  # encrypted aa...aa + k bytes from secret
-    vzor_enc = pg.encryption_oracle(vzor_msg)[(vzor_blok-1)*block_size:vzor_blok*block_size]  # encrypted aa...aa + k bytes from secret
-    return vzor_enc
-
-
-def print_not_found(pg, block_size, k, known, j):
-    print("Byte not found")
-    print("k = ", k)
-    print("guess = ", get_guess_block(pg, block_size, k, known, j), "\n")
-    (vzor_blok, vzor_msg) = get_oracle_block(block_size, k)
-    print_debug("vzor_msg = ", pg.append(vzor_msg))
-    print("vzor_blok = ", vzor_blok)
-
-
-def find_bytes(pg, k, known):
-    for j in range(256):
-        if enc_oracle_block(pg, block_size, k) == enc_guess_block(pg, block_size, k, known, j):
-            return j
-    print_not_found(pg, block_size, k, known, j)
-    exit(-1)
+    def create(self, k, known, j):
+        # input: k - next byte of secret that will be compared to guessed byte j
+        # input: known - known part of secret
+        # return: set the variable self.enc
+        self.iblok = 1
+        self.padding = bytes(b"a"*(block_size-k))  # block_size-k paddin of a (aa...aa)
+        self.msg = self.padding+bytes(known[max([k-16, 0]):])+bytes([j])  # padding + k-1 known bytes + 1 byte guess
+        self.enc = self.pg.encryption_oracle(self.msg)
 
 
 if __name__ == "__main__":
@@ -118,8 +118,16 @@ if __name__ == "__main__":
         enc_data.print_info()
 
     known = []
-    for b in range(1, 140):
-        known += [find_bytes(pg, b, known)]
+    cmsg = CompareMessage(pg, enc_data)
+    gmsg = GuessMessage(pg, enc_data)
+
+    for k in range(1, enc_data.bs*enc_data.num_block):
+        cmsg.create(k)
+        for j in range(256):
+            gmsg.create(k, known, j)
+            if cmsg.encode() == gmsg.encode():
+                known += [j]
+                break
     if debug:
         print(known, file=sys.stderr)
     print("".join([chr(k) for k in known]))
