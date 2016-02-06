@@ -101,21 +101,15 @@ class GuessMessage(Message):
         # input: known - known part of secret
         # return: set the variable self.enc
         self.iblok = 1
-        self.padding = bytes(b"a"*(block_size-k))  # block_size-k paddin of a (aa...aa)
+        self.padding = bytes(b"a"*(self.bs-k))  # block_size-k paddin of a (aa...aa)
         self.msg = self.padding+bytes(known[max([k-16, 0]):])+bytes([j])  # padding + k-1 known bytes + 1 byte guess
         self.enc = self.pg.encryption_oracle(self.msg)
 
 
 if __name__ == "__main__":
-    debug = False
     fn = sys.argv[1] if len(sys.argv) > 1 else "input.b64"
-    if debug:
-        print("File name: ", fn, file=sys.stderr)
     pg = PlayGround(fn)
     enc_data = EncData(pg)
-    block_size = enc_data.bs
-    if debug:
-        enc_data.print_info()
 
     known = []
     cmsg = CompareMessage(pg, enc_data)
@@ -128,6 +122,4 @@ if __name__ == "__main__":
             if cmsg.encode() == gmsg.encode():
                 known += [j]
                 break
-    if debug:
-        print(known, file=sys.stderr)
     print("".join([chr(k) for k in known]))
