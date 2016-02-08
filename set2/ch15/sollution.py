@@ -7,13 +7,15 @@ class PKCS7:
         self.__base = base
 
     def encode(self, data):
-        length = self.__base - (len(data) % self.__base)
-        data += bytes([length])*length
+        p_len = self.__base - (len(data) % self.__base)
+        if p_len == 0:
+            p_len = self.__base
+        data += bytes([p_len])*p_len
         return data
 
     def decode(self, data):
         pad = data[-1]
-        if pad >= self.__base:
+        if pad > self.__base:
             raise ValueError("Last byte of padding (\\x{0:02x}) is bigger then base ({1})".format(pad, self.__base))
         for i in range(len(data)-pad, len(data)):
             if data[i] != pad:
@@ -23,6 +25,11 @@ class PKCS7:
 
 if __name__ == "__main__":
     pkcs7 = PKCS7(16)
+    try:
+        print(pkcs7.decode(b'yellow submarine'))
+    except ValueError as e:
+        print(e)
+    print(pkcs7.decode(b'yellow submarine'+b'\x10'*16))
     print(pkcs7.decode(b'ICE ICE BABY\x04\x04\x04\x04'))
     try:
         print(pkcs7.decode(b'ICE ICE BABY\x04\x04\x04\x24'))
