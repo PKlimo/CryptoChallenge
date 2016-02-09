@@ -15,7 +15,7 @@ class PKCS7:
 
     def decode(self, data):
         pad = data[-1]
-        if pad > self.__base:
+        if not (0 < pad <= self.__base):
             raise ValueError("Last byte of padding (\\x{0:02x}) is bigger then base ({1})".format(pad, self.__base))
         for i in range(len(data)-pad, len(data)):
             if data[i] != pad:
