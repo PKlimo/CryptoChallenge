@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 from Crypto.Cipher import AES
+from Crypto import Random
 
 debug = True
 
@@ -24,7 +25,7 @@ class PKCS7:
 
     def decode(self, data):
         pad = data[-1]
-        if pad > self.__base:
+        if not (0 < pad <= self.__base):
             return False
         for i in range(len(data)-pad, len(data)):
             if data[i] != pad:
@@ -36,9 +37,7 @@ class PKCS7:
 class PlayGround:
     def __init__(self, fn):
         self.__pkcs = PKCS7(16)
-        from Crypto import Random
         self.__passwd = Random.new().read(16)
-        self.__iv = Random.new().read(16)
         with open(fn, "rt") as f:
             lines = f.readlines()
         import random
@@ -47,27 +46,50 @@ class PlayGround:
         self.__secret = base64.decodebytes(lines[l].encode('ascii'))
 
     def enc(self):
-        obj = AES.new(self.__passwd, AES.MODE_CBC, self.__iv)
+        iv = Random.new().read(16)
+        obj = AES.new(self.__passwd, AES.MODE_CBC, iv)
         msg = self.__pkcs.encode(self.__secret)
         cip = obj.encrypt(msg)
-        return cip
+        return iv+cip
 
     def dec(self, input):
-        obj = AES.new(self.__passwd, AES.MODE_CBC, self.__iv)
-        cip = obj.decrypt(input)
+        obj = AES.new(self.__passwd, AES.MODE_CBC, input[0:16])
+        cip = obj.decrypt(input[16:])
+        # print_debug_block("msg: ", cip)
         return self.__pkcs.decode(cip)
 
-    def check(self, input):
-        data = self.dec(input)
-        data = data.decode('ascii', errors='ignore')
-        print(data)
-        if ";admin=true;" in data:
-            print("Check: OK")
-        else:
-            print("Check: Failed")
+
+def dec_byte(pblock, nblock, pos, known):
+    ret = []
+    for i in range(0, 256):
+        g_block = bytearray(pblock)
+        for p in range(1, pos):
+            g_block[16-p] = pblock[16-p] ^ known[p-1] ^ pos
+        g_block[16-pos] = pblock[16-pos] ^ i ^ pos
+        g_block = bytes(g_block)
+        if pg.dec(g_block+nblock):
+            ret += [i]
+    return ret
+
+
+def dec_block(pblock, nblock):
+    known = []
+    for i in range(1, 17):
+        found = dec_byte(pblock, nblock, i, known)
+        if len(found) == 1:
+            known += found
+        elif len(found) == 2:  # if there are two possibility, e.g. \x02\x01 and \x02\x02 (both correct padding)
+            if len(dec_byte(pblock, nblock, i+1, known+[found[0]])) == 0:  # try one more step with first one and if failed
+                known += [found[1]]  # return second quess
+            else:
+                known += [found[0]]
+    return "".join([chr(k) for k in reversed(known)])
 
 if __name__ == "__main__":
     pg = PlayGround('data.b64')
     data = pg.enc()
-    valid = pg.dec(data)
-    print(valid)
+
+    msg = ""
+    for i in range(0, (len(data) // 16) - 1):
+        msg += dec_block(data[i*16:(i+1)*16], data[(i+1)*16:(i+2)*16])
+    print(msg)
