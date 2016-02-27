@@ -88,8 +88,8 @@ def untwist_part(mt, i):
     return [mt1, mt2]
 
 
-def compare_states(mt1, mt2):
-    for i in range(624):
+def compare_states(kon, mt1, mt2):
+    for i in range(623, kon, -1):
         if mt1[i] != mt2[i]:
             print("differance in part ", i)
 
@@ -99,34 +99,40 @@ def print_states(nazov, st1, st2):
         print_state_part(st1, i)
         print_state_part(st2, i)
 
+
+# TODO refaktorizacia - untwist_part_comute - vstupne argumenty su iba to, co je nutne k vypoctu
+# untwist_part_check_guess - z dvoch hodnot predchadzajuceho vypoctu vrati spravnu
+# mtp a mtn - kompletne stavy sa nahradia iba parcialnymi castami stavov
 if __name__ == "__main__":
     mt = [0] * 624
     mt = init(42)
     mt2 = twist(mt)
     # sollution
+    kon = 220
     mtp = list(mt2)  # even
     mtn = list(mt2)  # odd
     mtg = list(mt2)  # good
-    for i in range(623, 615, -1):
+    for i in range(623, kon, -1):
         mtp, _mtn = untwist_part(mtp, i)
         mtn[i] = _mtn[i]
-        print(i, ":", sep="")
-        print("old state ", " "*6, end="")
-        print_state_part(mt, i)
-        print("new state ", " "*6, end="")
-        print_state_part(mt2, i)
-        print("guess even state ", end="")
-        print_state_part(mtp, i)
-        print("guess odd state  ", end="")
-        print_state_part(_mtn, i)
+        # print(i, ":", sep="")
+        # print("old state ", " "*6, end="")
+        # print_state_part(mt, i)
+        # print("new state ", " "*6, end="")
+        # print_state_part(mt2, i)
+        # print("guess even state ", end="")
+        # print_state_part(mtp, i)
+        # print("guess odd state  ", end="")
+        # print_state_part(_mtn, i)
         if i < 623:
             if twist_part(mtp, i) == mt2[i]:
-                print("even good")
+                # print("even good")
                 mtg[i+1] = mtp[i+1]
             if twist_part(mtn, i) == mt2[i]:
-                print("odd good")
+                # print("odd good")
                 mtg[i+1] = mtn[i+1]
-    print_states("mt/mtg", mt, mtg)
+    # print_states("mt/mtg", mt, mtg)
+    compare_states(kon, mt, mtg)
 
     index = 0
     # print_state_part(623)
