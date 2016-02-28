@@ -66,26 +66,69 @@ def twist(mt):
     return _mt
 
 
-def untwist_part(mt, i):
-    xA = mt[i] ^ mt[(i+397) % 624]
-    if (mt[(i + 1) % 624] % 2) != 0:
+def untwist_part_compute(cur, prev, next, oposite, oposite_prev):
+    xA = cur ^ oposite
+    if (next % 2) != 0:
         xA = xA ^ 0x9908B0DF
     x = xA << 1
-    if (mt[(i + 1) % 624] % 2) != 0:
+    if (next % 2) != 0:
         x += 1
     h = _int32(_high_mask(x))
 
-    xA1 = mt[(i - 1) % 624] ^ mt[(i+396) % 624]  # if last bit of untwisted mt[i] = 0
+    xA1 = prev ^ oposite_prev  # if last bit of untwisted mt[i] = 0
     xA2 = xA1 ^ 0x9908B0DF  # if last bit of untwisted mt[i] = 1
     x1 = xA1 << 1
     x2 = (xA2 << 1) + 1
     l1 = _int32(_low_mask(x1))
     l2 = _int32(_low_mask(x2))
+    return [h + l1, h + l2]
+
+
+def untwist_part(mt, i):
+    cur = mt[i]
+    next = mt[(i + 1) % 624]
+    prev = mt[(i - 1) % 624]
+    oposite = mt[(i+397) % 624]
+    oposite_prev = mt[(i+396) % 624]
+
+    g1, g2 = untwist_part_compute(cur, prev, next, oposite, oposite_prev)
+
     mt1 = list(mt)
     mt2 = list(mt)
-    mt1[i] = h + l1
-    mt2[i] = h + l2
+    mt1[i] = g1
+    mt2[i] = g2
     return [mt1, mt2]
+
+
+def untwist(mt):
+    # TODO refaktorizacia
+    # untwist_part_check_guess - z dvoch hodnot predchadzajuceho vypoctu vrati spravnu
+    # mtp a mtn - kompletne stavy sa nahradia iba parcialnymi castami stavov
+    kon = 220
+    mtp = list(mt)  # even
+    mtn = list(mt)  # odd
+    mtg = list(mt)  # good
+    for i in range(623, kon, -1):
+        mtp, _mtn = untwist_part(mtp, i)
+        mtn[i] = _mtn[i]
+        # print(i, ":", sep="")
+        # print("old state ", " "*6, end="")
+        # print_state_part(mt, i)
+        # print("new state ", " "*6, end="")
+        # print_state_part(mt, i)
+        # print("guess even state ", end="")
+        # print_state_part(mtp, i)
+        # print("guess odd state  ", end="")
+        # print_state_part(_mtn, i)
+        if i < 623:
+            if twist_part(mtp, i) == mt[i]:
+                # print("even good")
+                mtg[i+1] = mtp[i+1]
+            if twist_part(mtn, i) == mt[i]:
+                # print("odd good")
+                mtg[i+1] = mtn[i+1]
+    # print_states("mt/mtg", mt, mtg)
+    return mtg
 
 
 def compare_states(kon, mt1, mt2):
@@ -100,43 +143,13 @@ def print_states(nazov, st1, st2):
         print_state_part(st2, i)
 
 
-# TODO refaktorizacia - untwist_part_comute - vstupne argumenty su iba to, co je nutne k vypoctu
-# untwist_part_check_guess - z dvoch hodnot predchadzajuceho vypoctu vrati spravnu
-# mtp a mtn - kompletne stavy sa nahradia iba parcialnymi castami stavov
 if __name__ == "__main__":
     mt = [0] * 624
     mt = init(42)
-    mt2 = twist(mt)
+    mt_next = twist(mt)
     # sollution
+    mt_next_prev = untwist(mt_next)
     kon = 220
-    mtp = list(mt2)  # even
-    mtn = list(mt2)  # odd
-    mtg = list(mt2)  # good
-    for i in range(623, kon, -1):
-        mtp, _mtn = untwist_part(mtp, i)
-        mtn[i] = _mtn[i]
-        # print(i, ":", sep="")
-        # print("old state ", " "*6, end="")
-        # print_state_part(mt, i)
-        # print("new state ", " "*6, end="")
-        # print_state_part(mt2, i)
-        # print("guess even state ", end="")
-        # print_state_part(mtp, i)
-        # print("guess odd state  ", end="")
-        # print_state_part(_mtn, i)
-        if i < 623:
-            if twist_part(mtp, i) == mt2[i]:
-                # print("even good")
-                mtg[i+1] = mtp[i+1]
-            if twist_part(mtn, i) == mt2[i]:
-                # print("odd good")
-                mtg[i+1] = mtn[i+1]
-    # print_states("mt/mtg", mt, mtg)
-    compare_states(kon, mt, mtg)
+    compare_states(kon, mt, mt_next_prev)
 
     index = 0
-    # print_state_part(623)
-    # print_state_part(623)
-    # print_state()
-    # twist()
-    # print(extract_number(mt, index))
