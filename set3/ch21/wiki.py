@@ -57,7 +57,7 @@ class MT19937:
 
 
 if __name__ == "__main__":
-    gn = MT19937(4)
+    gn = MT19937(42)
     # gn.twist()
     # gn.print_state()
     print(gn.extract_number())

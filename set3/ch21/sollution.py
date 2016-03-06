@@ -57,7 +57,7 @@ def twist():
 
 
 if __name__ == "__main__":
-    init(4)
+    init(42)
     # twist()
     # print_state()
     # twist()
