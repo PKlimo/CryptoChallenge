@@ -72,7 +72,7 @@ def init(seed):
 def uninit(mt):
     # from init state return seed
     if not is_init(mt):
-        print("state is not init state")
+        # print("state is not init state")
         return
 
     def egcd(a, b):
@@ -126,7 +126,7 @@ def untwist_part_compute(cur, prev, next, oposite, oposite_prev):
     return [h + l1, h + l2]
 
 
-def untwist_part(mt, mtg, i):
+def untwist_part_guess(mt, mtg, i):
     cur = mt[i]
     next = mt[(i + 1) % 624]
     prev = mt[(i - 1) % 624]
@@ -134,8 +134,8 @@ def untwist_part(mt, mtg, i):
         oposite = mt[(i+397) % 624]
         oposite_prev = mt[(i+396) % 624]
     elif i == 227:
-        oposite = mtg[(i+397) % 624]
-        oposite_prev = mt[(i+396) % 624]
+        oposite = mt[(i+397) % 624]
+        oposite_prev = mtg[(i+396) % 624]
     elif i < 227:
         oposite = mtg[(i+397) % 624]
         oposite_prev = mtg[(i+396) % 624]
@@ -143,8 +143,24 @@ def untwist_part(mt, mtg, i):
     return untwist_part_compute(cur, prev, next, oposite, oposite_prev)
 
 
+def untwist_part_check(mt, mtg, i):
+    if twist_part(mtg, i) == mt[i]:
+        return mtg
+
+    guess_even, guess_odd = untwist_part_guess(mt, mtg, i)
+    mte = list(mtg)
+    mte[i] = guess_even
+    if twist_part(mte, i) == mt[i]:
+        return mte
+    mto = list(mtg)
+    mto[i] = guess_odd
+    if twist_part(mto, i) == mt[i]:
+        return mto
+    return mtg
+
+
 def debug_untwist(mt, mto, mtp, mtn, i, mt_00, mt_01, mt_10, mt_11):
-    if -225 <= i <= 226:
+    if -225 <= i <= 227:
         print(i, ":", sep="")
         print("old state ", " "*6, end="")
         print_state_part(mto, i)
@@ -167,7 +183,7 @@ def untwist(mt):
     mtn = list(mt)  # odd
     mtg = list(mt)  # good
     for i in range(623, -1, -1):
-        guess_even, guess_odd = untwist_part(mtp, mtg, i)
+        guess_even, guess_odd = untwist_part_guess(mtp, mtg, i)
         mtp[i] = guess_even
         mtn[i] = guess_odd
         if i < 623:
@@ -193,16 +209,25 @@ def untwist(mt):
             elif twist_part(mt_11, i) == mt[i]:
                 mtg[i+1] = mtn[i+1]
             else:
-                print("unknown good")
+                if i != 226:  # I am solving part 227 later
+                    print("unknown good for i=", i)
+                # debug_untwist(mt, mto, mtp, mtn, i, mt_00, mt_01, mt_10, mt_11)
         if i == 0:
             if twist_part(mtp, 0) == mt[0]:
                 mtg[0] = guess_even
             elif twist_part(mtn, 0) == mt[0]:
                 mtg[0] = guess_odd
             else:
-                print("unknown good")
-            # debug_untwist(mt, mto, mtp, mtn, i, mt_00, mt_01, mt_10, mt_11)
+                pass
+                # print("unknown good")
+                # debug_untwist(mt, mto, mtp, mtn, i, mt_00, mt_01, mt_10, mt_11)
     # print_states("mt/mtg", mt, mtg)
+    # solve part 227
+    # import pdb
+    # pdb.set_trace()
+    mtg = untwist_part_check(mt, mtg, 227)
+    mtg = untwist_part_check(mt, mtg, 226)
+    mtg = untwist_part_check(mt, mtg, 0)
     return mtg
 
 
@@ -211,6 +236,8 @@ def compare_states(kon, mt1, mt2):
     for i in range(623, kon, -1):
         if mt1[i] != mt2[i]:
             print("differance in part ", i)
+            print_state_part(mt1, i)
+            print_state_part(mt2, i)
             ret = False
     return ret
 
@@ -230,7 +257,7 @@ def is_init(mt):
 
 if __name__ == "__main__":
     mt = [0] * 624
-    mt = init(42)
+    mt = init(4190403025)
     mt_next = twist(mt)
 
     # untwist() test coverage
