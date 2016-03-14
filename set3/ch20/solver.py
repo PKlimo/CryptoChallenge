@@ -40,6 +40,7 @@ def score_column(rows, i):
     print(c.most_common(8))
     return c.most_common(1)[0][0]
 
+
 if __name__ == "__main__":
     fn = sys.argv[1] if len(sys.argv) > 1 else "encoded_data.hex"
     with open(fn, "rt") as f:
