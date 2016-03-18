@@ -9,7 +9,7 @@ class shatest(unittest.TestCase):
     def test_sha(self):
         testData = [b"test string", b"string longer than 512 bits" + b"A" * 512, b"very long" + b"X" * 3000, bytes(range(256))]
         for msg in testData:
-            h1 = sha1.sha1(msg.decode("ascii"))
+            h1 = sha1.sha1(msg)
             mac = hashlib.sha1(msg)
             h2 = mac.hexdigest()
             self.assertEqual(h1, h2, "[ERROR] for msg: {}".format(msg))

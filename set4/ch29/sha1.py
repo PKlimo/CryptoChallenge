@@ -5,7 +5,7 @@ from __future__ import print_function
 def padding(data):
     msg = ""
     for n in range(len(data)):
-        msg += '{0:08b}'.format(ord(data[n]))
+        msg += '{0:08b}'.format(data[n])
     pBits = "1"
     # pad until length equals 448 mod 512
     while len(msg + pBits) % 512 != 448:

@@ -35,15 +35,14 @@ if __name__ == "__main__":
     key_len = 3
 
     msg_new = b"new message"
-    _, glue_padding = sha1.padding("X" * key_len + msg.decode("ascii"))
+    _, glue_padding = sha1.padding(b"X" * key_len + msg)
     gl = sha1.chunks(glue_padding, 8)
-    pok = bytes([int(i, 2) for i in gl]).decode("ascii")
-    print(pok)
-    msg_fake = msg.decode('ascii') + glue_padding + msg_new.decode('ascii')
+    glue_padding = bytes([int(i, 2) for i in gl])
+    msg_fake = msg + glue_padding + msg_new
 
-    _, msg_new_pad = sha1.padding("X" * key_len + msg.decode("ascii") + glue_padding + msg_new.decode("ascii"))
+    _, msg_new_pad = sha1.padding(b"X" * key_len + msg + glue_padding + msg_new)
     h0, h1, h2, h3, h4 = sha1.sha2state(mac)
-    m, _ = sha1.padding(msg_new.decode('ascii') + msg_new_pad)
+    m, _ = sha1.padding(msg_new + msg_new_pad.encode('ascii'))
     h0, h1, h2, h3, h4 = sha1.process(m, h0, h1, h2, h3, h4)
     mac_fake = '%08x%08x%08x%08x%08x' % (h0, h1, h2, h3, h4)
-    pg.check_msg(msg_fake.encode('ascii'), mac_fake)
+    pg.check_msg(msg_fake, mac_fake)
