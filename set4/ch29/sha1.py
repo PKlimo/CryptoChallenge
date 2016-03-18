@@ -81,7 +81,7 @@ def sha2state(sha):
     return h0, h1, h2, h3, h4
 
 
-def sha1(data):
+def process_all(data):
     h0 = 0x67452301
     h1 = 0xEFCDAB89
     h2 = 0x98BADCFE
@@ -91,5 +91,9 @@ def sha1(data):
     msg, pBits = padding(data)
     for chunk in chunks(msg + pBits, 512):
         h0, h1, h2, h3, h4 = process(chunk, h0, h1, h2, h3, h4)
+    return h0, h1, h2, h3, h4
 
+
+def sha1(data):
+    h0, h1, h2, h3, h4 = process_all(data)
     return '%08x%08x%08x%08x%08x' % (h0, h1, h2, h3, h4)
